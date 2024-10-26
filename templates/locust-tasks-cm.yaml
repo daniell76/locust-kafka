@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: locust-tasks
+  namespace: {{ .Values.kafka.namespace }}
+data:
+{{ (.Files.Glob "locust-tasks/*.py").AsConfig | indent 2 }}

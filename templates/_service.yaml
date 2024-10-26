@@ -1,0 +1,29 @@
+{{- define "_service.yaml" }}
+{{- $kafkaClientRole := .kafkaClientRole }}
+{{- $locustMode := .locustMode }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "locust-kafka.fullname" . }}-svc-{{ $kafkaClientRole }}
+  namespace: {{ .Values.kafka.namespace }}
+  labels:
+    {{- include "locust-kafka.labels" . | nindent 4 }}
+    kafka_client: {{ $kafkaClientRole }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port.webui }}
+      targetPort: {{ .Values.service.port.webui }}
+      protocol: TCP
+      name: {{ $kafkaClientRole }}-webui
+    {{- if eq $locustMode "distributed" }}
+    - port: {{ .Values.service.port.control }}
+      targetPort: {{ .Values.service.port.control }}
+      protocol: TCP
+      name: {{ $kafkaClientRole }}-control
+    {{- end }}
+  selector:
+    {{- include "locust-kafka.selectorLabels" . | nindent 4 }}
+    kafka_client: {{ $kafkaClientRole }}
+    locust_role: master
+  {{- end}}

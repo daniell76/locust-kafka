@@ -1,0 +1,88 @@
+# Default values for locust-kafka.
+kafka_test:
+  data_per_user_mb: 100  # each user will produce/consume 100MB data
+  msg_size_kb: 100  # each message is 100KB
+  create_topic: true
+  producer:
+    ack_all: true
+    retry: -1  # use client default value
+    batch_size: -1  # use client default value
+    linger_ms: -1 # use client default value
+    workers: 1  # if more than 1, will use distributed mode
+    task_file: producer.py
+    test_batch: 100  # num of messages to measure latency
+  consumer:
+    workers: 1  # if more than 1, will use distributed mode
+    task_file: consumer.py
+
+kafka:
+  namespace: kafka
+  clustername: daisy-kafka
+  bootstrap: 10.200.239.33:9093
+  username: perf-user
+  consumer_group: perf-test
+  topic:
+    name: perf-test-topic-1
+    partitions: 6
+    replicas: 2
+    retention_min: 120  # 2 hours
+    segment_mb: 1024  # 1G
+
+service:
+  type: LoadBalancer  # LoadBalancer or ClusterIP
+  port:
+    webui: 8089
+    control: 5557
+
+replicaCount: 1
+
+image:
+  repository: locustio/locust
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: "locust-kafka"
+fullnameOverride: "locust-kafka"
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+#livenessProbe:
+#  httpGet:
+#    path: /
+#    port: http
+#readinessProbe:
+#  httpGet:
+#    path: /
+#    port: http
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

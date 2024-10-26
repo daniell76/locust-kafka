@@ -1,0 +1,14 @@
+{{- if gt (int .Values.kafka_test.consumer.workers) 1 -}}
+{{ include "_deployment.yaml"
+  (mergeOverwrite
+    .
+    (dict
+      "kafkaClientRole" "consumer"
+      "locustPodRole" "worker"
+      "locustMode" "distributed"
+      "locust_task_file" .Values.kafka_test.consumer.task_file
+      "replicas" .Values.kafka_test.consumer.workers
+    )
+  )
+}}
+{{- end }}

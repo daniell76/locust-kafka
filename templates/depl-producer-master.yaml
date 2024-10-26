@@ -1,0 +1,16 @@
+{{- $locustMode := "singlenode" }}
+{{- if gt (int .Values.kafka_test.producer.workers) 1 }}
+{{- $locustMode = "distributed" }}
+{{- end }}
+{{ include "_deployment.yaml"
+  (mergeOverwrite
+    .
+    (dict
+      "kafkaClientRole" "producer"
+      "locustPodRole" "master"
+      "locustMode" $locustMode
+      "locust_task_file" .Values.kafka_test.producer.task_file
+      "replicas" 1
+    )
+  )
+}}

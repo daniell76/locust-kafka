@@ -1,0 +1,125 @@
+{{- define "_deployment.yaml" -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "locust-kafka.fullname" . }}-deploy-{{ .kafkaClientRole }}-{{ .locustPodRole }}
+  namespace: {{ .Values.kafka.namespace }}
+  labels:
+    {{- include "locust-kafka.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .replicas }}
+  selector:
+    matchLabels:
+      {{- include "locust-kafka.selectorLabels" . | nindent 6 }}
+      kafka_client: {{ .kafkaClientRole }}
+      locust_role: {{ .locustPodRole }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "locust-kafka.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        kafka_client: {{ .kafkaClientRole }}
+        locust_role: {{ .locustPodRole }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}-{{ .kafkaClientRole }}-{{ .locustPodRole }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if eq .locustPodRole "worker" }}
+          args:
+            - "-f"
+            - "$(TEST_CASE)"
+            - "--worker"
+            - "--master-host"
+            - "{{ include "locust-kafka.fullname" . }}-svc-{{ .kafkaClientRole }}.{{ .Values.kafka.namespace }}.svc.cluster.local"
+          {{- else if eq .locustMode "singlenode" }}
+          args: [ "-f", "$(TEST_CASE)" ]
+          {{- else if eq .locustMode "distributed" }}
+          args: [ "-f", "$(TEST_CASE)", "--master" ]
+          {{- end}}
+          ports:
+            - containerPort: {{ .Values.service.port.webui }}
+            {{- if and (eq .locustPodRole "master") (eq .locustMode "distributed") }}
+            - containerPort: {{ .Values.service.port.control }}
+            {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: kafka-cluster-ca
+              mountPath: /test/kafka-cluster-ca
+            - name: kafka-user-credential
+              mountPath: /test/kafka-user-credential
+            - name: locust-tasks
+              mountPath: /test/locust-tasks
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "{{ .Values.kafka.bootstrap }}"
+            - name: KAFKA_TOPIC
+              value: "{{ .Values.kafka.topic.name }}"
+            - name: KAFKA_CONSUMER_GROUP
+              value: "{{ .Values.kafka.consumer_group}}"
+            - name: KAFKA_BYTES_PER_USER
+              value: "{{ mul .Values.kafka_test.data_per_user_mb 1048576 }}"
+            - name: KAFKA_MSG_SIZE
+              value: "{{ mul .Values.kafka_test.msg_size_kb 1024 }}"
+            - name: KAFKA_PROD_ACK_ALL
+              value: "{{ .Values.kafka_test.producer.ack_all }}"
+            - name: KAFKA_PROD_RETRIES
+              value: "{{ .Values.kafka_test.producer.retry }}"
+            - name: KAFKA_BATCH_SIZE
+              value: "{{ .Values.kafka_test.producer.batch_size }}"
+            - name: KAFKA_LINGER_MS
+              value: "{{ .Values.kafka_test.producer.linger_ms }}"
+            - name: KAFKA_SECURITY_PROTOCAL
+              value: "SSL"
+            - name: KAFKA_CA_LOCATION
+              value: "/test/kafka-cluster-ca/ca.crt"
+            - name: KAFKA_CERT_LOCATION
+              value: "/test/kafka-user-credential/user.crt"
+            - name: KAFKA_KEY_LOCATION
+              value: "/test/kafka-user-credential/user.key"
+            - name: TEST_CASE
+              value: "/test/locust-tasks/{{ .locust_task_file }}"
+            - name: TEST_BATCH
+              value: "{{ .Values.kafka_test.producer.test_batch }}"
+      volumes:
+        - name: kafka-cluster-ca
+          secret:
+            secretName: {{ .Values.kafka.clustername -}}-cluster-ca-cert
+        - name: kafka-user-credential
+          secret:
+            secretName: {{ .Values.kafka.username }}
+        - name: locust-tasks
+          configMap:
+            name: locust-tasks
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- end }}

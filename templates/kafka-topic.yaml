@@ -1,0 +1,15 @@
+{{- if .Values.kafka_test.create_topic -}}
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: {{ .Values.kafka.topic.name }}
+  namespace: {{ .Values.kafka.namespace }}
+  labels:
+    strimzi.io/cluster: {{ .Values.kafka.clustername }}  # Replace with your cluster name
+spec:
+  partitions: {{ .Values.kafka.topic.partitions }}
+  replicas: {{ .Values.kafka.topic.replicas }}
+  config:
+    retention.ms: {{ mul .Values.kafka.topic.retention_min 60000 }}
+    segment.bytes: {{ mul .Values.kafka.topic.segment_mb 1048576 }}
+{{- end }}
